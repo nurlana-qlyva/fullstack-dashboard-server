@@ -34,6 +34,13 @@ app.use(
 app.use(express.json({ limit: "1mb" }));
 app.use(cookieParser());
 
+res.cookie("refreshToken", token, {
+  httpOnly: true,
+  secure: true, // prod https şart
+  sameSite: "none", // cross-site cookie için şart
+  path: "/api/auth/refresh",
+});
+
 // CORS
 const allowed = [
   "http://localhost:5173",
@@ -42,17 +49,26 @@ const allowed = [
 
 app.use(
   cors({
-    origin: (origin, cb) => {
+    origin: function (origin, cb) {
+      // Postman/curl gibi origin olmayanlara izin
       if (!origin) return cb(null, true);
-      return allowed.includes(origin)
-        ? cb(null, true)
-        : cb(new Error("Not allowed by CORS"));
+
+      // preview domainleri de kabul etmek istersen:
+      const isVercelPreview =
+        origin.endsWith(".vercel.app") && origin.includes("YOUR-PROJECT");
+
+      if (allowedOrigins.includes(origin) || isVercelPreview) {
+        return cb(null, true);
+      }
+      return cb(new Error("CORS: Origin not allowed -> " + origin));
     },
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
+
+app.options("*", cors());
 
 // Health
 app.get("/health", (req, res) => res.json({ ok: true }));
