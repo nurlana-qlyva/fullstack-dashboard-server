@@ -16,11 +16,9 @@ const overviewRoutes = require("./routes/overview.routes");
 
 const app = express();
 
-// Güvenlik + log
 app.use(helmet());
 app.use(morgan("dev"));
 
-// Rate limit (genel)
 app.use(
   rateLimit({
     windowMs: 60 * 1000,
@@ -30,10 +28,11 @@ app.use(
   })
 );
 
+// ✅ KRITIK: cookie-parser CORS'tan önce
 app.use(express.json({ limit: "1mb" }));
 app.use(cookieParser());
 
-// ✅ CORS - DÜZELTİLMİŞ VERSİYON
+// ✅ CORS - Vercel proxy için
 const allowedOrigins = [
   "http://localhost:5173",
   "http://localhost:3000",
@@ -43,7 +42,7 @@ const allowedOrigins = [
 app.use(
   cors({
     origin: function (origin, callback) {
-      // Origin yoksa izin ver (Postman, mobil app vb.)
+      // Origin yoksa izin ver (same-origin veya Postman)
       if (!origin) return callback(null, true);
 
       if (allowedOrigins.includes(origin)) {
@@ -53,18 +52,14 @@ app.use(
         callback(new Error("Not allowed by CORS"));
       }
     },
-    credentials: true, // ✅ Cookie desteği
-    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"], // ✅ Tüm metodlar
-    allowedHeaders: ["Content-Type", "Authorization"], // ✅ İzin verilen headerlar
-    exposedHeaders: ["Set-Cookie"], // ✅ Cookie'leri göster
-    maxAge: 86400, // ✅ Preflight cache (24 saat)
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
 
-// ✅ Preflight istekleri için explicit handler
 app.options(/.*/, cors());
 
-// Health check
 app.get("/health", (req, res) => res.json({ ok: true }));
 
 // Routes
@@ -75,7 +70,6 @@ app.use("/api/analytics", analyticsRoutes);
 app.use("/api/overview", overviewRoutes);
 app.use("/api/orders", require("./routes/order.routes"));
 
-// Error handlers
 app.use(notFound);
 app.use(errorHandler);
 
