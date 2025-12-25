@@ -7,6 +7,15 @@ const {
   verifyRefresh,
 } = require("../utils/tokens");
 
+// ✅ Cookie konfigürasyonu - tek bir yerde tanımla
+const COOKIE_OPTIONS = {
+  httpOnly: true,
+  sameSite: "none", // Cross-domain için zorunlu
+  secure: true,     // SameSite=none için HTTPS zorunlu
+  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 gün
+  path: "/",        // ✅ TÜM endpoint'lerde okunabilir olmalı
+};
+
 async function register(req, res, next) {
   try {
     const { name, email, password } = req.body;
@@ -45,17 +54,8 @@ async function login(req, res, next) {
     user.refreshTokenHash = await bcrypt.hash(refreshToken, 10);
     await user.save();
 
-    const isProd = process.env.NODE_ENV === "production";
-
-    // ✅ Cross-domain cookie ayarları
-    res.cookie("refreshToken", refreshToken, {
-      httpOnly: true,
-      sameSite: "none", // ✅ Cross-site için zorunlu
-      secure: true, // ✅ SameSite=none için zorunlu (her zaman HTTPS gerekir)
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-      path: "/api/auth/login",
-      domain: isProd ? undefined : undefined, // ✅ Domain belirtme - otomatik
-    });
+    // ✅ Cookie'yi ayarla
+    res.cookie("refreshToken", refreshToken, COOKIE_OPTIONS);
 
     res.json({
       accessToken,
@@ -74,6 +74,11 @@ async function login(req, res, next) {
 async function refresh(req, res, next) {
   try {
     const token = req.cookies.refreshToken;
+    
+    // ✅ Debug için log ekle (geliştirme aşamasında)
+    console.log("🍪 Cookies received:", Object.keys(req.cookies));
+    console.log("🔑 RefreshToken exists:", !!token);
+    
     if (!token) return next(new AppError("Missing refresh token", 401));
 
     const payload = verifyRefresh(token);
@@ -113,15 +118,8 @@ async function logout(req, res, next) {
       }
     }
 
-    const isProd = process.env.NODE_ENV === "production";
-
-    // Cookie'yi temizle - login ile aynı ayarlar
-    res.clearCookie("refreshToken", {
-      httpOnly: true,
-      sameSite: isProd ? "none" : "lax",
-      secure: isProd,
-      path: "/api/auth/login", // ✅ login ile aynı path
-    });
+    // ✅ Cookie'yi temizle - aynı options ile
+    res.clearCookie("refreshToken", COOKIE_OPTIONS);
 
     res.json({ ok: true });
   } catch (e) {
