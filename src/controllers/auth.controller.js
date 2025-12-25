@@ -1,7 +1,11 @@
 const bcrypt = require("bcrypt");
 const User = require("../models/User");
 const { AppError } = require("../utils/AppError");
-const { signAccessToken, signRefreshToken, verifyRefresh } = require("../utils/tokens");
+const {
+  signAccessToken,
+  signRefreshToken,
+  verifyRefresh,
+} = require("../utils/tokens");
 
 async function register(req, res, next) {
   try {
@@ -13,7 +17,12 @@ async function register(req, res, next) {
     const passwordHash = await bcrypt.hash(password, 12);
     const user = await User.create({ name, email, passwordHash });
 
-    res.status(201).json({ id: user._id, name: user.name, email: user.email, role: user.role });
+    res.status(201).json({
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+    });
   } catch (e) {
     next(e);
   }
@@ -29,25 +38,34 @@ async function login(req, res, next) {
     const ok = await bcrypt.compare(password, user.passwordHash);
     if (!ok) return next(new AppError("Invalid credentials", 401));
 
-    const accessToken = signAccessToken({ sub: user._id.toString(), role: user.role });
+    const accessToken = signAccessToken({
+      sub: user._id.toString(),
+      role: user.role,
+    });
     const refreshToken = signRefreshToken({ sub: user._id.toString() });
 
     // Refresh token hash sakla (rotate altyapısı)
     user.refreshTokenHash = await bcrypt.hash(refreshToken, 10);
     await user.save();
 
-    // Refresh token cookie (HttpOnly)
+    const isProd = process.env.NODE_ENV === "production";
+
     res.cookie("refreshToken", refreshToken, {
       httpOnly: true,
-      sameSite: "none",
-      secure: true, // prod: true (https)
+      sameSite: isProd ? "none" : "lax",
+      secure: isProd, // ✅ sadece prod'da true
       maxAge: 7 * 24 * 60 * 60 * 1000,
       path: "/api/auth/refresh",
     });
 
     res.json({
       accessToken,
-      user: { id: user._id, name: user.name, email: user.email, role: user.role },
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      },
     });
   } catch (e) {
     next(e);
@@ -61,12 +79,16 @@ async function refresh(req, res, next) {
 
     const payload = verifyRefresh(token);
     const user = await User.findById(payload.sub);
-    if (!user || !user.refreshTokenHash) return next(new AppError("Unauthorized", 401));
+    if (!user || !user.refreshTokenHash)
+      return next(new AppError("Unauthorized", 401));
 
     const matches = await bcrypt.compare(token, user.refreshTokenHash);
     if (!matches) return next(new AppError("Unauthorized", 401));
 
-    const newAccess = signAccessToken({ sub: user._id.toString(), role: user.role });
+    const newAccess = signAccessToken({
+      sub: user._id.toString(),
+      role: user.role,
+    });
     res.json({ accessToken: newAccess });
   } catch (e) {
     next(new AppError("Invalid refresh token", 401));
@@ -82,6 +104,13 @@ async function logout(req, res, next) {
     }
     res.clearCookie("refreshToken");
     res.json({ ok: true });
+
+    const isProd = process.env.NODE_ENV === "production";
+    res.clearCookie("refreshToken", {
+      path: "/api/auth/refresh",
+      sameSite: isProd ? "none" : "lax",
+      secure: isProd,
+    });
   } catch (e) {
     next(e);
   }

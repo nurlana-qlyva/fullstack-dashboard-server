@@ -40,19 +40,34 @@ const allowed = [
   "https://fullstack-dashboard-gamma.vercel.app",
 ];
 
-app.use(
-  cors({
-    origin: (origin, cb) => {
-      if (!origin) return cb(null, true);
-      return allowed.includes(origin)
-        ? cb(null, true)
-        : cb(new Error("Not allowed by CORS"));
-    },
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-  })
-);
+// Vercel preview deploy’lar için esnek izin:
+function isAllowedOrigin(origin) {
+  if (!origin) return true;
+  if (allowed.includes(origin)) return true;
+
+  // fullstack-dashboard-gamma-xxxx.vercel.app gibi preview’ları kabul et
+  if (
+    origin.endsWith(".vercel.app") &&
+    origin.includes("fullstack-dashboard-gamma")
+  )
+    return true;
+
+  return false;
+}
+
+const corsOptions = {
+  origin: (origin, cb) => {
+    if (isAllowedOrigin(origin)) return cb(null, true);
+    // ⚠️ Error fırlatmak yerine false dönmek daha temiz (CORS header problemi azalır)
+    return cb(null, false);
+  },
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+};
+
+app.use(cors(corsOptions));
+app.options("*", cors(corsOptions)); // ✅ preflight
 
 // Health
 app.get("/health", (req, res) => res.json({ ok: true }));
