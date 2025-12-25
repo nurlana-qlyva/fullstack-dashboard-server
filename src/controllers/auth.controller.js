@@ -39,9 +39,10 @@ async function login(req, res, next) {
     // Refresh token cookie (HttpOnly)
     res.cookie("refreshToken", refreshToken, {
       httpOnly: true,
-      sameSite: "lax",
-      secure: false, // prod: true (https)
+      sameSite: "none",
+      secure: true, // prod: true (https)
       maxAge: 7 * 24 * 60 * 60 * 1000,
+      path: "/api/auth/refresh",
     });
 
     res.json({
