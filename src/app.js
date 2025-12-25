@@ -35,31 +35,25 @@ app.use(express.json({ limit: "1mb" }));
 app.use(cookieParser());
 
 // CORS
-const corsOptions = {
-  origin: (origin, cb) => {
-    const allowed = [
-      "http://localhost:5173",
-      "https://fullstack-dashboard-gamma.vercel.app",
-    ];
+const allowedOrigins = [
+  "http://localhost:5173",
+  "http://localhost:3000",
+  "https://fullstack-dashboard-gamma.vercel.app",
+];
 
-    // Vercel preview desteklemek istersen:
-    const isPreview =
-      origin &&
-      origin.endsWith(".vercel.app") &&
-      origin.includes("fullstack-dashboard-gamma");
-
-    if (!origin) return cb(null, true);
-    if (allowed.includes(origin) || isPreview) return cb(null, true);
-
-    return cb(null, false);
-  },
-  credentials: true,
-  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
-};
-
-app.use(cors(corsOptions));
-app.options(/.*/, cors(corsOptions));
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("CORS not allowed"));
+      }
+    },
+    credentials: true,
+  })
+);
 
 // Health
 app.get("/health", (req, res) => res.json({ ok: true }));
