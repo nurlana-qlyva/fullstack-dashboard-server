@@ -35,30 +35,22 @@ app.use(express.json({ limit: "1mb" }));
 app.use(cookieParser());
 
 // CORS
-const allowed = [
-  "http://localhost:5173",
-  "https://fullstack-dashboard-gamma.vercel.app",
-];
-
-// Vercel preview deploy’lar için esnek izin:
-function isAllowedOrigin(origin) {
-  if (!origin) return true;
-  if (allowed.includes(origin)) return true;
-
-  // fullstack-dashboard-gamma-xxxx.vercel.app gibi preview’ları kabul et
-  if (
-    origin.endsWith(".vercel.app") &&
-    origin.includes("fullstack-dashboard-gamma")
-  )
-    return true;
-
-  return false;
-}
-
 const corsOptions = {
   origin: (origin, cb) => {
-    if (isAllowedOrigin(origin)) return cb(null, true);
-    // ⚠️ Error fırlatmak yerine false dönmek daha temiz (CORS header problemi azalır)
+    const allowed = [
+      "http://localhost:5173",
+      "https://fullstack-dashboard-gamma.vercel.app",
+    ];
+
+    // Vercel preview desteklemek istersen:
+    const isPreview =
+      origin &&
+      origin.endsWith(".vercel.app") &&
+      origin.includes("fullstack-dashboard-gamma");
+
+    if (!origin) return cb(null, true);
+    if (allowed.includes(origin) || isPreview) return cb(null, true);
+
     return cb(null, false);
   },
   credentials: true,
