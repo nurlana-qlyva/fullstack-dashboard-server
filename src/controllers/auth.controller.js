@@ -10,7 +10,6 @@ const {
 async function register(req, res, next) {
   try {
     const { name, email, password } = req.body;
-
     const exists = await User.findOne({ email });
     if (exists) return next(new AppError("Email already in use", 409));
 
@@ -31,7 +30,6 @@ async function register(req, res, next) {
 async function login(req, res, next) {
   try {
     const { email, password } = req.body;
-
     const user = await User.findOne({ email });
     if (!user) return next(new AppError("Invalid credentials", 401));
 
@@ -44,18 +42,18 @@ async function login(req, res, next) {
     });
     const refreshToken = signRefreshToken({ sub: user._id.toString() });
 
-    // Refresh token hash sakla (rotate altyapısı)
     user.refreshTokenHash = await bcrypt.hash(refreshToken, 10);
     await user.save();
 
     const isProd = process.env.NODE_ENV === "production";
 
+    // Cookie ayarları tutarlı olmalı
     res.cookie("refreshToken", refreshToken, {
       httpOnly: true,
       sameSite: isProd ? "none" : "lax",
-      secure: isProd, // ✅ sadece prod'da true
+      secure: isProd,
       maxAge: 7 * 24 * 60 * 60 * 1000,
-      path: "/api/auth/refresh",
+      path: "/",
     });
 
     res.json({
@@ -89,6 +87,7 @@ async function refresh(req, res, next) {
       sub: user._id.toString(),
       role: user.role,
     });
+
     res.json({ accessToken: newAccess });
   } catch (e) {
     next(new AppError("Invalid refresh token", 401));
@@ -98,19 +97,32 @@ async function refresh(req, res, next) {
 async function logout(req, res, next) {
   try {
     const token = req.cookies.refreshToken;
+    
+    // Token varsa kullanıcının DB'deki hash'ini temizle
     if (token) {
-      // best-effort invalidate
-      // (tokeni decode edip user bulmak opsiyonel; basit yaklaşım cookie sil)
+      try {
+        const payload = verifyRefresh(token);
+        const user = await User.findById(payload.sub);
+        if (user) {
+          user.refreshTokenHash = null;
+          await user.save();
+        }
+      } catch (err) {
+        // Token geçersizse bile cookie'yi temizle
+      }
     }
-    res.clearCookie("refreshToken");
-    res.json({ ok: true });
 
     const isProd = process.env.NODE_ENV === "production";
+
+    // Cookie'yi temizle - login ile aynı ayarlar
     res.clearCookie("refreshToken", {
-      path: "/api/auth/refresh",
+      httpOnly: true,
       sameSite: isProd ? "none" : "lax",
       secure: isProd,
+      path: "/", 
     });
+
+    res.json({ ok: true });
   } catch (e) {
     next(e);
   }
