@@ -67,7 +67,7 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
-app.options("*", cors(corsOptions)); // ✅ preflight
+app.options(/.*/, cors(corsOptions));
 
 // Health
 app.get("/health", (req, res) => res.json({ ok: true }));
