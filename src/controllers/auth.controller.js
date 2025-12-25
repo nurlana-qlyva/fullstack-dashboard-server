@@ -53,7 +53,7 @@ async function login(req, res, next) {
       sameSite: "none", // ✅ Cross-site için zorunlu
       secure: true, // ✅ SameSite=none için zorunlu (her zaman HTTPS gerekir)
       maxAge: 7 * 24 * 60 * 60 * 1000,
-      path: "/",
+      path: "/api/auth/login",
       domain: isProd ? undefined : undefined, // ✅ Domain belirtme - otomatik
     });
 
@@ -120,7 +120,7 @@ async function logout(req, res, next) {
       httpOnly: true,
       sameSite: isProd ? "none" : "lax",
       secure: isProd,
-      path: "/", // ✅ login ile aynı path
+      path: "/api/auth/login", // ✅ login ile aynı path
     });
 
     res.json({ ok: true });
