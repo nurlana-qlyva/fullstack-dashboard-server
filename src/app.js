@@ -62,7 +62,7 @@ app.use(
 );
 
 // ✅ Preflight istekleri için explicit handler
-app.options("*", cors());
+app.options(/.*/, cors());
 
 // Health check
 app.get("/health", (req, res) => res.json({ ok: true }));
