@@ -55,7 +55,7 @@ async function login(req, res, next) {
       sameSite: isProd ? "none" : "lax",
       secure: isProd, // ✅ sadece prod'da true
       maxAge: 7 * 24 * 60 * 60 * 1000,
-      path: "/api/refresh",
+      path: "/api/auth/refresh",
     });
 
     res.json({
@@ -107,7 +107,7 @@ async function logout(req, res, next) {
 
     const isProd = process.env.NODE_ENV === "production";
     res.clearCookie("refreshToken", {
-      path: "/api/refresh",
+      path: "/api/auth/refresh",
       sameSite: isProd ? "none" : "lax",
       secure: isProd,
     });
